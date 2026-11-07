@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ballz Battle</title>
+<meta name="description" content="Two-player Ballz battle: shoot through your friend's goal.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=DM+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#1b1524; --field:#120e19; --panel:#231b2e; --line:#3a2e49;
+  --fg:#f1e8f6; --muted:#a898b8; --ink:#1a1222;
+  --amber:#f2b33d; --cream:#fbf1dc; --mint:#6fe3b4; --cyan:#68d3f2; --rose:#e2577f;
+  --display:"Bricolage Grotesque", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"DM Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font-family:var(--display);font-size:15px;line-height:1.45;padding:12px max(16px, env(safe-area-inset-right,0px)) 32px max(16px, env(safe-area-inset-left,0px))}
+.app{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+.cab{--ar:0.5625;width:min(100%, max(260px, calc((100vh - 230px) * var(--ar))));margin:0 auto;display:flex;flex-direction:column;gap:10px}
+@supports (height:100dvh){.cab{width:min(100%, max(260px, calc((100dvh - 230px) * var(--ar))))}}
+.bar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-size:22px;font-weight:800;letter-spacing:-0.02em;line-height:1.05;margin:0}
+.tag{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+a{color:var(--cyan)}
+.score{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pl{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 10px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.pl.turn{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset}
+.pl .top{display:flex;flex-direction:column;gap:1px;font-size:14px;font-weight:700;min-width:0}
+.pl .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl .meta{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--muted);white-space:nowrap}
+.hpbar{height:6px;border-radius:3px;background:var(--field);overflow:hidden}
+.hpbar i{display:block;height:100%;border-radius:3px;background:var(--mint);transition:width .3s}
+.pl.opp .hpbar i{background:var(--rose)}
+.stage{position:relative;width:100%;aspect-ratio:var(--ar);border-radius:14px;overflow:hidden;background:var(--field);box-shadow:0 0 0 1px var(--line), 0 18px 40px -20px #000}
+canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.over{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;background:color-mix(in srgb, var(--field) 88%, transparent);padding:20px;overflow-y:auto}
+.over h2{margin:0;font-size:26px;font-weight:800;letter-spacing:-0.02em}
+.over p{margin:0;color:var(--muted);max-width:30ch}
+.row{display:flex;gap:8px;width:100%;max-width:280px}
+.row input{flex:1;min-width:0}
+input{font:inherit;font-size:16px;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+input:focus-visible,.btn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+#codeIn{text-transform:uppercase;letter-spacing:.2em;font-family:var(--mono)}
+.btn{font:inherit;font-size:15px;font-weight:700;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 14px;cursor:pointer;line-height:1.2}
+.btn.primary{background:var(--amber);color:var(--ink);border-color:var(--amber)}
+.btn.wide{width:100%;max-width:280px}
+.btn:disabled{opacity:.45;cursor:default}
+.or{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--muted)}
+.code{font-family:var(--mono);font-size:40px;font-weight:500;letter-spacing:.18em;color:var(--amber)}
+.err{color:var(--rose)!important}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ff{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:3px;gap:2px}
+.ff button{font:inherit;font-family:var(--mono);font-size:13px;color:var(--muted);background:none;border:0;border-radius:6px;padding:5px 10px;cursor:pointer}
+.ff button[aria-pressed="true"]{background:var(--fg);color:var(--ink)}
+.spacer{flex:1}
+.status{margin:0;font-size:14px;font-weight:600;min-height:1.45em}
+.help{margin:0;font-size:13px;color:var(--muted)}
+.help b{color:var(--fg)}
+.settings{background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.settings summary{list-style:none;cursor:pointer;padding:12px 14px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);display:flex;justify-content:space-between}
+.settings summary::-webkit-details-marker{display:none}
+.settings summary::after{content:"+";font-size:15px;line-height:1}
+.settings[open] summary::after{content:"–"}
+.setbody{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
+.fld{display:flex;flex-direction:column;gap:3px}
+.fld .lbl{display:flex;justify-content:space-between;gap:8px;font-size:14px;font-weight:600}
+.fld output{font-family:var(--mono);font-weight:400;font-size:13px}
+.fld input[type=range]{width:100%;accent-color:var(--amber);margin:4px 0;padding:0;border:0;background:none}
+.fld .hint{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="cab">
+    <header class="bar">
+      <div>
+        <h1>Ballz Battle</h1>
+        <span class="tag">Prototype · 2 players · v4</span>
+      </div>
+      <a href="./" class="tag">Solo game →</a>
+    </header>
+    <div class="score">
+      <div class="pl opp" id="plOpp"><div class="top"><span class="nm" id="nmOpp">Opponent</span><span class="meta" id="mtOpp"></span></div><div class="hpbar"><i id="hpOpp" style="width:100%"></i></div></div>
+      <div class="pl me" id="plMe"><div class="top"><span class="nm" id="nmMe">You</span><span class="meta" id="mtMe"></span></div><div class="hpbar"><i id="hpMe" style="width:100%"></i></div></div>
+    </div>
+    <div class="stage">
+      <canvas id="cv" aria-label="Battle field. Your end is at the bottom. Drag to aim, release to fire."></canvas>
+      <div class="over" id="lobby">
+        <h2>Battle a friend</h2>
+        <p>Take turns shooting volleys. Get balls through the gap in your friend's end to take their HP.</p>
+        <div class="row"><input id="nameIn" maxlength="20" placeholder="Your name" autocomplete="nickname" aria-label="Your name"></div>
+        <button class="btn primary wide" id="createBtn" type="button">Create a match</button>
+        <span class="or">OR JOIN WITH A CODE</span>
+        <div class="row"><input id="codeIn" maxlength="5" placeholder="CODE" autocomplete="off" autocapitalize="characters" aria-label="Match code"><button class="btn" id="joinBtn" type="button">Join</button></div>
+        <button class="btn wide" id="localBtn" type="button">Practice on one phone</button>
+        <p id="lobbyMsg" role="status"></p>
+      </div>
+      <div class="over" id="waitBox" hidden>
+        <h2>Match created</h2>
+        <p>Send this code or link to your friend:</p>
+        <div class="code" id="codeShow">-----</div>
+        <button class="btn primary wide" id="shareBtn" type="button">Share invite link</button>
+        <p id="waitMsg" role="status">Waiting for your friend to join…</p>
+        <button class="btn" id="cancelBtn" type="button">Cancel</button>
+      </div>
+      <div class="over" id="endBox" hidden>
+        <h2 id="endTitle">You win!</h2>
+        <p id="endText"></p>
+        <button class="btn primary wide" id="rematchBtn" type="button">Rematch</button>
+        <button class="btn" id="leaveBtn2" type="button">Leave</button>
+      </div>
+    </div>
+    <p class="status" id="status" role="status"></p>
+    <div class="controls">
+      <div class="ff" role="group" aria-label="Playback speed">
+        <button type="button" data-mult="1" aria-pressed="true">×1</button>
+        <button type="button" data-mult="2" aria-pressed="false">×2</button>
+        <button type="button" data-mult="4" aria-pressed="false">×4</button>
+      </div>
+      <span class="spacer"></span>
+      <button class="btn" id="leaveBtn" type="button" hidden>Leave match</button>
+    </div>
+    <p class="help"><b>How it works.</b> Drag on the field to aim from your launcher, release to fire your whole volley. Balls that reach the glowing gap in your friend's end cost them 1 HP each; the rest of their wall bounces balls back. Balls that come home land, and the first one home sets where you shoot from next. Each half of the field is your own Ballz board: before your turn, a new row is inserted at the centre line and pushes your half one row towards you. Blocks pushed past the red line into your end cost you HP. First to 0 HP loses.</p>
+    <details class="settings" id="setBox">
+      <summary>Match settings</summary>
+      <div class="setbody">
+        <p class="help">Used when you create a match, start a rematch or practise. Both players play with the settings of whoever started the game.</p>
+        <div id="setList" class="setbody" style="padding:0"></div>
+        <button class="btn" id="setReset" type="button">Reset to defaults</button>
+      </div>
+    </details>
+  </div>
+</div>
+<script>
+(() => {
+"use strict";
+// ---------- Firebase (same database as the solo leaderboard) ----------
+const FIREBASE = {
+  authDomain: "balls-game-93efe.firebaseapp.com",
+  databaseURL: "https://balls-game-93efe-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "balls-game-93efe",
+};
+const SDK = "https://www.gstatic.com/firebasejs/10.12.2/";
+
+// ---------- rules of the game ----------
+const COLS = 9, C = 50, W = COLS * C, R = 9, GAP = 2.5;
+const STEP = 1 / 240, FIRE_GAP = 20, MAX_STEPS = 240 * 20, MIN_V = 0.12;
+// Match settings. A game carries its own copy, so both players always play by the same rules.
+const SETTINGS = [
+  { k: "hp", label: "Starting HP", min: 5, max: 100, step: 5, def: 25 },
+  { k: "balls", label: "Starting balls", min: 1, max: 20, step: 1, def: 3 },
+  { k: "gain", label: "Balls gained per turn", min: 0, max: 3, step: 1, def: 1 },
+  { k: "rows", label: "Field length (rows)", min: 12, max: 24, step: 2, def: 16, hint: "Half of the rows belong to each player." },
+  { k: "startRows", label: "Block rows at the start, per side", min: 0, max: 5, step: 1, def: 2 },
+  { k: "newRows", label: "Rows inserted before each turn", min: 0, max: 2, step: 1, def: 1, hint: "Inserted at the centre line, pushing the shooter's half towards them. 0 turns it off." },
+  { k: "density", label: "How full a new row is", min: 20, max: 90, step: 5, def: 55, unit: "%" },
+  { k: "blockHp", label: "Block HP at the start", min: 1, max: 10, step: 1, def: 2 },
+  { k: "hpGrow", label: "Block HP added per round", min: 0, max: 5, step: 1, def: 1 },
+  { k: "goal", label: "Goal width (columns)", min: 1, max: 9, step: 2, def: 5 },
+  { k: "pushDmg", label: "HP lost per block pushed into your end", min: 0, max: 5, step: 1, def: 1 },
+  { k: "speed", label: "Ball speed", min: 600, max: 1400, step: 50, def: 900 },
+];
+const DEFAULTS = Object.fromEntries(SETTINGS.map(d => [d.k, d.def]));
+function cleanCfg(o) {
+  const c = {};
+  for (const d of SETTINGS) { const v = Math.round((Number(o && o[d.k]) - d.min) / d.step) * d.step + d.min; c[d.k] = Number.isFinite(v) ? clamp(v, d.min, d.max) : d.def; }
+  c.startRows = Math.min(c.startRows, c.rows / 2 - 2);
+  return c;
+}
+let ROWS = 16, H = ROWS * C, GOAL0 = 2 * C, GOAL1 = 7 * C, SPEED = 900;
+function setGeometry(cfg) {
+  ROWS = cfg.rows; H = ROWS * C; SPEED = cfg.speed;
+  GOAL0 = (W - cfg.goal * C) / 2; GOAL1 = GOAL0 + cfg.goal * C;
+}
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+const other = s => s === "host" ? "guest" : "host";
+const whose = st => (st.n % 2 === 0) ? st.first : other(st.first);
+
+function rng32(seed) {
+  let a = seed >>> 0 || 1;
+  return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+// Blocks are mirrored through the centre of the field, so both players face the same board.
+const mirror = i => (ROWS - 1 - Math.floor(i / COLS)) * COLS + (COLS - 1 - i % COLS);
+function newState(seed, first, g, cfgIn) {
+  const cfg = cleanCfg(cfgIn); setGeometry(cfg);
+  const rnd = rng32(seed), blocks = new Array(COLS * ROWS).fill(0), mid = ROWS / 2;
+  // the starting rows sit against the centre line, mirrored so both halves match
+  for (let k = 0; k < cfg.startRows; k++) {
+    const r = mid - 1 - k, cells = [];
+    for (let c = 0; c < COLS; c++) if (rnd() * 100 < cfg.density) cells.push(c);
+    while (cells.length > COLS - 2) cells.splice(Math.floor(rnd() * cells.length), 1);
+    for (const c of cells) { const i = r * COLS + c; blocks[i] = cfg.blockHp; blocks[mirror(i)] = cfg.blockHp; }
+  }
+  const st = { g, n: 0, first, seed, winner: "", cfg, hp: { host: cfg.hp, guest: cfg.hp }, balls: { host: cfg.balls, guest: cfg.balls },
+    lx: { host: W / 2, guest: W / 2 }, blocks: blocks.join(","), push: null };
+  advance(st, first);   // the first shooter gets their row before their first turn too, like everyone after
+  return st;
+}
+const parseBlocks = s => String(s || "").split(",").map(v => Math.max(0, Math.floor(Number(v) || 0))).concat(new Array(COLS * ROWS).fill(0)).slice(0, COLS * ROWS);
+// Each half is its owner's Ballz board. Before each turn, new rows are inserted at the centre line and push
+// the shooter's half towards them; blocks pushed into their end row are gone and cost them HP. (It is applied
+// as part of the previous shot's result, so it shows up as soon as that shot lands.) Rows 0 and ROWS-1 are
+// the end rows where the launchers sit.
+function advance(ns, toward) {
+  const b = parseBlocks(ns.blocks), mid = ROWS / 2, cfg = ns.cfg, hp = cfg.blockHp + cfg.hpGrow * Math.floor(ns.n / 2);
+  let pushed = 0;
+  for (let k = 0; k < cfg.newRows; k++) {
+    const rnd = rng32((ns.seed ^ Math.imul(ns.n * 4 + k + 1, 2654435761)) >>> 0);
+    if (toward === "guest") {
+      for (let r = 1; r < mid; r++) for (let c = 0; c < COLS; c++) {
+        const i = r * COLS + c; if (!b[i]) continue;
+        if (r === 1) pushed++; else b[i - COLS] = b[i];
+        b[i] = 0;
+      }
+    } else {
+      for (let r = ROWS - 2; r >= mid; r--) for (let c = 0; c < COLS; c++) {
+        const i = r * COLS + c; if (!b[i]) continue;
+        if (r === ROWS - 2) pushed++; else b[i + COLS] = b[i];
+        b[i] = 0;
+      }
+    }
+    const row = toward === "guest" ? mid - 1 : mid, cells = [];
+    for (let c = 0; c < COLS; c++) if (rnd() * 100 < cfg.density) cells.push(c);
+    while (cells.length > COLS - 2) cells.splice(Math.floor(rnd() * cells.length), 1);
+    for (const c of cells) b[row * COLS + c] = hp;
+  }
+  ns.blocks = b.join(",");
+  return pushed;
+}
+
+// ---------- the simulation ----------
+// Deterministic: fixed steps and only + − × ÷ and sqrt, so every browser plays a shot out the same way.
+// The shooter's browser still has the final word: it sends the resulting state, which the other side adopts.
+function makeSim(st, shot) {
+  setGeometry(st.cfg);
+  const home = shot.by, up = home === "host";
+  let dx = Number(shot.dx) || 0, dy = Number(shot.dy) || (up ? -1 : 1);
+  const len = Math.sqrt(dx * dx + dy * dy) || 1; dx /= len; dy /= len;
+  return { st, shot, home, up, blocks: parseBlocks(st.blocks), balls: [], launched: 0, count: Math.max(1, Math.floor(shot.count) || 1),
+    sx: clamp(Number(shot.lx) || W / 2, R, W - R), sy: up ? H - R - 1 : R + 1, dx, dy, step: 0, done: false, firstHome: null, dmg: 0, fx: [] };
+}
+function simStep(S) {
+  if (S.done) return;
+  if (S.launched < S.count && S.step % FIRE_GAP === 0) { S.balls.push({ x: S.sx, y: S.sy, vx: S.dx * SPEED, vy: S.dy * SPEED }); S.launched++; }
+  const B = S.balls;
+  for (let i = B.length - 1; i >= 0; i--) {
+    const b = B[i];
+    b.x += b.vx * STEP; b.y += b.vy * STEP;
+    if (b.x < R) { b.x = R; b.vx = Math.abs(b.vx); } else if (b.x > W - R) { b.x = W - R; b.vx = -Math.abs(b.vx); }
+    // the far wall (opponent's end): goal gap or bounce; the near wall: home
+    const far = S.up ? b.y - R <= 0 : b.y + R >= H, near = S.up ? b.y + R >= H : b.y - R <= 0;
+    if (far) {
+      if (b.x >= GOAL0 && b.x <= GOAL1) { S.dmg++; S.fx.push({ k: "goal", x: b.x, y: S.up ? 0 : H }); B.splice(i, 1); continue; }
+      if (S.up) { b.y = R; b.vy = Math.abs(b.vy); } else { b.y = H - R; b.vy = -Math.abs(b.vy); }
+    } else if (near && (S.up ? b.vy > 0 : b.vy < 0)) {
+      if (S.firstHome === null) S.firstHome = b.x;
+      B.splice(i, 1); continue;
+    }
+    // blocks
+    const c0 = Math.max(0, Math.floor((b.x - R) / C)), c1 = Math.min(COLS - 1, Math.floor((b.x + R) / C));
+    const r0 = Math.max(0, Math.floor((b.y - R) / C)), r1 = Math.min(ROWS - 1, Math.floor((b.y + R) / C));
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+      const k = r * COLS + c; if (!S.blocks[k]) continue;
+      const x0 = c * C + GAP, x1 = (c + 1) * C - GAP, y0 = r * C + GAP, y1 = (r + 1) * C - GAP;
+      const px = clamp(b.x, x0, x1), py = clamp(b.y, y0, y1);
+      let nx = b.x - px, ny = b.y - py; const d2 = nx * nx + ny * ny;
+      if (d2 >= R * R) continue;
+      if (d2 > 1e-12) { const d = Math.sqrt(d2); nx /= d; ny /= d; b.x = px + nx * R; b.y = py + ny * R; }
+      else {   // centre inside the box: leave by the nearest side
+        const l = b.x - x0, rr = x1 - b.x, t = b.y - y0, bt = y1 - b.y, m = Math.min(l, rr, t, bt);
+        if (m === l) { nx = -1; ny = 0; b.x = x0 - R; } else if (m === rr) { nx = 1; ny = 0; b.x = x1 + R; } else if (m === t) { nx = 0; ny = -1; b.y = y0 - R; } else { nx = 0; ny = 1; b.y = y1 + R; }
+      }
+      const vn = b.vx * nx + b.vy * ny;
+      if (vn < 0) { b.vx -= 2 * vn * nx; b.vy -= 2 * vn * ny; }
+      S.blocks[k]--;
+      if (!S.blocks[k]) S.fx.push({ k: "pop", x: (x0 + x1) / 2, y: (y0 + y1) / 2 });
+    }
+  }
+  // ball–ball collisions (equal masses)
+  for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) {
+    const a = B[i], b = B[j]; let nx = a.x - b.x, ny = a.y - b.y; const d2 = nx * nx + ny * ny;
+    if (d2 >= 4 * R * R || d2 < 1e-12) continue;
+    const d = Math.sqrt(d2); nx /= d; ny /= d;
+    const push = (2 * R - d) / 2; a.x += nx * push; a.y += ny * push; b.x -= nx * push; b.y -= ny * push;
+    const rv = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
+    if (rv < 0) { a.vx -= rv * nx; a.vy -= rv * ny; b.vx += rv * nx; b.vy += rv * ny; }
+  }
+  // constant speed, and never so flat that a ball rattles sideways for ever
+  for (const b of B) {
+    let s = Math.sqrt(b.vx * b.vx + b.vy * b.vy) || 1; b.vx *= SPEED / s; b.vy *= SPEED / s;
+    if (Math.abs(b.vy) < MIN_V * SPEED) {
+      const sy = b.vy > 0 ? 1 : b.vy < 0 ? -1 : (S.up ? -1 : 1), sx = b.vx < 0 ? -1 : 1;
+      b.vy = sy * MIN_V * SPEED; b.vx = sx * Math.sqrt(SPEED * SPEED - b.vy * b.vy);
+    }
+  }
+  S.step++;
+  if (S.launched >= S.count && !B.length) S.done = true;
+  if (S.step >= MAX_STEPS) { S.balls = []; S.done = true; }   // a shot can't last longer than 20 s
+}
+function resultOf(S) {
+  const st = S.st, me = S.home, opp = other(me);
+  setGeometry(st.cfg);
+  const ns = JSON.parse(JSON.stringify(st));
+  ns.n = st.n + 1; ns.blocks = S.blocks.join(",");
+  ns.balls[me] = st.balls[me] + st.cfg.gain;
+  if (S.firstHome !== null) ns.lx[me] = clamp(S.firstHome, R, W - R);
+  const pushed = advance(ns, opp), pushDmg = pushed * st.cfg.pushDmg;
+  ns.hp[opp] = Math.max(0, st.hp[opp] - S.dmg - pushDmg);
+  ns.push = { to: opp, blocks: pushed, dmg: pushDmg };
+  if (ns.hp[opp] <= 0) ns.winner = me;
+  return ns;
+}
+function runToEnd(st, shot) { const S = makeSim(st, shot); while (!S.done) simStep(S); return S; }
+window.BattleSim = { newState, makeSim, simStep, resultOf, runToEnd, DEFAULTS };   // for testing
+
+// ---------- page state ----------
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const G = { mode: "lobby", code: "", role: "host", players: { host: null, guest: null }, st: null, shot: null, sim: null, pending: null,
+  aim: null, dragging: false, mult: 1, fx: [], db: null, api: null, unsub: null, writing: false };
+let myId = "";
+try { myId = localStorage.getItem("chaoslab.pid") || ""; } catch (e) {}
+if (!/^[A-Za-z0-9]{20}$/.test(myId)) {
+  const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", buf = new Uint32Array(20);
+  crypto.getRandomValues(buf); myId = Array.from(buf, n => abc.charAt(n % abc.length)).join("");
+  try { localStorage.setItem("chaoslab.pid", myId); } catch (e) {}
+}
+const cleanName = t => String(t || "").replace(/[\u0000-\u001f]/g, "").trim().slice(0, 20);
+const myName = () => cleanName($("nameIn").value) || "Player " + myId.slice(0, 4);
+try { $("nameIn").value = localStorage.getItem("chaoslab.name") || ""; } catch (e) {}
+$("nameIn").addEventListener("change", () => { try { localStorage.setItem("chaoslab.name", cleanName($("nameIn").value)); } catch (e) {} });
+
+// who is at the bottom of this screen: online, always me; on one phone, Player 1 (Player 2 shoots from the top)
+const viewRole = () => G.mode === "local" ? "host" : G.role;
+const flip = () => viewRole() === "guest";
+const nameOf = role => G.mode === "local" ? (role === "host" ? "Player 1" : "Player 2") : cleanName(G.players[role] && G.players[role].name) || (role === "host" ? "Host" : "Guest");
+
+// ---------- Firebase plumbing ----------
+async function fb() {
+  if (G.db) return G.api;
+  const [appM, dbM] = await Promise.all([import(SDK + "firebase-app.js"), import(SDK + "firebase-database.js")]);
+  const app = appM.initializeApp(FIREBASE);
+  G.api = dbM; G.db = dbM.getDatabase(app);
+  return dbM;
+}
+const mref = (d, path) => d.ref(G.db, "battles/" + G.code + (path ? "/" + path : ""));
+const CODE_ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const newCode = () => { const b = new Uint32Array(5); crypto.getRandomValues(b); return Array.from(b, n => CODE_ABC.charAt(n % CODE_ABC.length)).join(""); };
+function lobbyMsg(t, err) { $("lobbyMsg").textContent = t; $("lobbyMsg").classList.toggle("err", !!err); }
+
+async function createMatch() {
+  saveName(); lobbyMsg("Creating…");
+  try {
+    const d = await fb();
+    for (let tries = 0; tries < 5; tries++) {
+      G.code = newCode();
+      const seed = (crypto.getRandomValues(new Uint32Array(1))[0]) >>> 0;
+      const res = await d.runTransaction(mref(d, ""), cur => cur === null ? { host: { id: myId, name: myName() }, created: Date.now(), state: newState(seed, "host", 1, myCfg) } : undefined);
+      if (res.committed) { enterOnline("host"); return; }
+    }
+    lobbyMsg("Couldn't create a match. Try again.", true);
+  } catch (e) { lobbyMsg("Couldn't reach the server (" + ((e && e.code) || e.message || "error") + ").", true); }
+}
+async function joinMatch(code) {
+  saveName();
+  code = String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (code.length !== 5) { lobbyMsg("Codes are 5 characters.", true); return; }
+  lobbyMsg("Joining…");
+  try {
+    const d = await fb(); G.code = code;
+    const host = await d.get(mref(d, "host"));
+    if (!host.exists()) { forget(); lobbyMsg("No match with code " + code + ".", true); return; }
+    if (host.val().id === myId) { enterOnline("host"); return; }
+    const res = await d.runTransaction(mref(d, "guest"), cur => (cur === null || (cur && cur.id === myId)) ? { id: myId, name: myName() } : undefined);
+    if (!res.committed) { forget(); lobbyMsg("That match already has two players.", true); return; }
+    enterOnline("guest");
+  } catch (e) { lobbyMsg("Couldn't reach the server (" + ((e && e.code) || e.message || "error") + ").", true); }
+}
+function forget() { try { localStorage.removeItem("chaosbattle.code"); } catch (e) {} history.replaceState(null, "", location.pathname); }
+function saveName() { try { localStorage.setItem("chaoslab.name", cleanName($("nameIn").value)); } catch (e) {} }
+function enterOnline(role) {
+  G.mode = "online"; G.role = role; G.st = null; G.shot = null; G.sim = null; G.pending = null;
+  try { localStorage.setItem("chaosbattle.code", G.code); } catch (e) {}
+  history.replaceState(null, "", "?b=" + G.code);
+  $("lobby").hidden = true; $("leaveBtn").hidden = false;
+  const d = G.api;
+  if (G.unsub) G.unsub();
+  G.unsub = d.onValue(mref(d, ""), snap => onMatch(snap.val()), err => setStatus("Lost the connection (" + ((err && err.code) || "error") + ")."));
+}
+function onMatch(m) {
+  if (!m || !m.host) { setStatus("This match no longer exists."); return; }
+  G.players.host = m.host; G.players.guest = m.guest || null;
+  const st = sanitizeState(m.state), shot = m.shot || null;
+  $("waitBox").hidden = !(G.role === "host" && !m.guest);
+  $("codeShow").textContent = G.code;
+  if (!st) return;
+  // a new game (rematch) or a newer turn replaces what we show, unless a shot is still playing out
+  const newer = !G.st || st.g !== G.st.g || st.n > G.st.n;
+  if (newer) {
+    if (G.sim && !G.sim.done && st.g === G.sim.st.g && st.n === G.sim.st.n + 1) G.pending = st;
+    else { G.sim = null; applyState(st); }
+  }
+  // a shot for the turn on screen: the opponent's, or my own if this page reloaded mid-shot (then this
+  // page replays it and sends the result)
+  if (shot && G.st && !G.st.winner && shot.g === G.st.g && shot.n === G.st.n && !G.sim) startShot(sanitizeShot(shot));
+  render(); hud();
+}
+function sanitizeShot(s) {
+  return { g: Math.floor(Number(s.g) || 0), n: Math.floor(Number(s.n) || 0), by: s.by === "guest" ? "guest" : "host", lx: Number(s.lx) || W / 2,
+    dx: Number(s.dx) || 0, dy: Number(s.dy) || 0, count: clamp(Math.floor(Number(s.count) || 1), 1, 500) };
+}
+function sanitizeState(s) {
+  if (!s || typeof s !== "object") return null;
+  const n = v => Math.max(0, Math.floor(Number(v) || 0));
+  const cfg = cleanCfg(s.cfg || DEFAULTS); setGeometry(cfg);
+  const pu = s.push && typeof s.push === "object" ? { to: s.push.to === "guest" ? "guest" : "host", blocks: n(s.push.blocks), dmg: n(s.push.dmg) } : null;
+  return { cfg, push: pu, g: n(s.g), n: n(s.n), first: s.first === "guest" ? "guest" : "host", seed: n(s.seed), winner: s.winner === "host" || s.winner === "guest" ? s.winner : "",
+    hp: { host: n(s.hp && s.hp.host), guest: n(s.hp && s.hp.guest) }, balls: { host: Math.max(1, n(s.balls && s.balls.host)), guest: Math.max(1, n(s.balls && s.balls.guest)) },
+    lx: { host: clamp(Number(s.lx && s.lx.host) || W / 2, R, W - R), guest: clamp(Number(s.lx && s.lx.guest) || W / 2, R, W - R) }, blocks: String(s.blocks || "") };
+}
+function applyState(st) {
+  const prev = G.st;
+  setGeometry(st.cfg);
+  // slide the half that just advanced, and show what the push cost
+  if (prev && prev.g === st.g && st.n === prev.n + 1 && st.push && st.cfg.newRows) {
+    G.slide = { to: st.push.to, rows: st.cfg.newRows, t0: performance.now() };
+    G.rowTag = { to: st.push.to, rows: st.cfg.newRows, t0: performance.now() };
+    if (st.push.dmg) G.fx.push({ k: "goal", txt: "−" + st.push.dmg, x: W / 2, y: st.push.to === "host" ? H : 0, t: performance.now() + 250 });
+  } else G.slide = null;
+  if (!prev || prev.cfg.rows !== st.cfg.rows) { document.querySelector(".cab").style.setProperty("--ar", String(COLS / ROWS)); requestAnimationFrame(() => { resize(); render(); }); }
+  G.st = st; G.pending = null; G.aim = null;
+  $("endBox").hidden = !st.winner;
+  if (st.winner) {
+    const me = G.mode === "local" ? st.winner : G.role, won = st.winner === me;
+    $("endTitle").textContent = G.mode === "local" ? nameOf(st.winner) + " wins!" : won ? "You win!" : nameOf(st.winner) + " wins";
+    $("endText").textContent = nameOf("host") + " " + st.hp.host + " HP · " + nameOf("guest") + " " + st.hp.guest + " HP after " + st.n + " turns.";
+  }
+  hud();
+}
+function startShot(shot) {
+  G.shot = shot; G.sim = makeSim(G.st, shot); G.acc = 0;
+  hud();
+}
+async function finishShot() {
+  const S = G.sim, ns = resultOf(S);
+  if (G.mode === "local") { G.sim = null; applyState(ns); return; }
+  if (S.home === G.role) {
+    // my shot: my result is the official one
+    G.sim = null; applyState(ns);
+    try { await G.api.set(mref(G.api, "state"), ns); } catch (e) { setStatus("Couldn't send the result. Check your connection; it retries when you reload."); }
+  } else if (G.pending && G.pending.n === S.st.n + 1) { G.sim = null; applyState(G.pending); }
+  else { setStatus("Waiting for " + nameOf(S.home) + "'s result…"); }   // onMatch applies it when it lands
+}
+async function fire(dx, dy) {
+  const st = G.st; if (!st || G.sim || st.winner) return;
+  const by = whose(st);
+  const shot = { g: st.g, n: st.n, by, lx: st.lx[by], dx, dy, count: st.balls[by] };
+  if (G.mode === "online") {
+    if (by !== G.role) return;
+    startShot(shot);
+    try { await G.api.set(mref(G.api, "shot"), shot); } catch (e) { setStatus("Couldn't send your shot. Check your connection."); }
+  } else startShot(shot);
+}
+async function rematch() {
+  const st = G.st; if (!st) return;
+  const loser = st.winner ? other(st.winner) : "host";
+  const seed = (crypto.getRandomValues(new Uint32Array(1))[0]) >>> 0;
+  const ns = newState(seed, loser, st.g + 1, myCfg);
+  if (G.mode === "local") { applyState(ns); return; }
+  try { await G.api.set(mref(G.api, "shot"), null); await G.api.set(mref(G.api, "state"), ns); } catch (e) { setStatus("Couldn't start the rematch."); }
+}
+function leave() {
+  if (G.unsub) { G.unsub(); G.unsub = null; }
+  try { localStorage.removeItem("chaosbattle.code"); } catch (e) {}
+  history.replaceState(null, "", location.pathname);
+  G.mode = "lobby"; G.st = null; G.sim = null; G.shot = null; G.pending = null; G.code = "";
+  $("lobby").hidden = false; $("waitBox").hidden = true; $("endBox").hidden = true; $("leaveBtn").hidden = true;
+  lobbyMsg(""); hud(); render();
+}
+function startLocal() {
+  G.mode = "local"; G.role = "host"; $("lobby").hidden = true; $("leaveBtn").hidden = false;
+  G.st = null;
+  applyState(newState((crypto.getRandomValues(new Uint32Array(1))[0]) >>> 0, "host", 1, myCfg));
+}
+
+// ---------- input: drag anywhere to aim from your launcher, release to fire ----------
+function toWorld(e) {
+  const r = cv.getBoundingClientRect();
+  let x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
+  if (flip()) { x = W - x; y = H - y; }
+  return { x, y };
+}
+const myTurn = () => G.st && !G.st.winner && !G.sim && (G.mode === "local" || (whose(G.st) === G.role && G.players.guest));
+function aimFrom(p) {
+  const by = whose(G.st), up = by === "host";
+  const sx = G.st.lx[by], sy = up ? H - R - 1 : R + 1;
+  let dx = p.x - sx, dy = p.y - sy;
+  if (up ? dy > -1 : dy < 1) return null;   // must point into the field
+  const len = Math.sqrt(dx * dx + dy * dy); dx /= len; dy /= len;
+  if (Math.abs(dy) < 0.15) { dy = up ? -0.15 : 0.15; dx = (dx < 0 ? -1 : 1) * Math.sqrt(1 - dy * dy); }
+  return { dx, dy, sx, sy };
+}
+cv.addEventListener("pointerdown", e => { if (!myTurn()) return; G.dragging = true; cv.setPointerCapture(e.pointerId); G.aim = aimFrom(toWorld(e)); });
+cv.addEventListener("pointermove", e => { if (G.dragging) G.aim = aimFrom(toWorld(e)); });
+cv.addEventListener("pointerup", e => {
+  if (!G.dragging) return; G.dragging = false;
+  const a = aimFrom(toWorld(e)); G.aim = null;
+  if (a && myTurn()) fire(a.dx, a.dy);
+});
+cv.addEventListener("pointercancel", () => { G.dragging = false; G.aim = null; });
+
+// ---------- HUD ----------
+function setStatus(t) { $("status").textContent = t; }
+function hud() {
+  const st = G.st, bottom = viewRole(), top = other(bottom);
+  $("nmMe").textContent = G.mode === "local" ? nameOf(bottom) : "You";
+  $("nmOpp").textContent = G.mode === "lobby" ? "Opponent" : nameOf(top);
+  if (st) {
+    $("mtMe").textContent = st.hp[bottom] + " HP · " + st.balls[bottom] + " balls";
+    $("mtOpp").textContent = st.hp[top] + " HP · " + st.balls[top] + " balls";
+    $("hpMe").style.width = (100 * st.hp[bottom] / st.cfg.hp) + "%";
+    $("hpOpp").style.width = (100 * st.hp[top] / st.cfg.hp) + "%";
+    const turn = G.sim ? G.sim.home : whose(st);
+    $("plMe").classList.toggle("turn", !st.winner && turn === bottom);
+    $("plOpp").classList.toggle("turn", !st.winner && turn === top);
+  } else { $("mtMe").textContent = ""; $("mtOpp").textContent = ""; $("plMe").classList.remove("turn"); $("plOpp").classList.remove("turn"); }
+  let s = "";
+  if (G.mode === "lobby") s = "";
+  else if (G.mode === "online" && !G.players.guest) s = "Waiting for your friend to join with code " + G.code + ".";
+  else if (!st) s = "Loading the match…";
+  else if (st.winner) s = "";
+  else if (G.sim) s = G.mode === "local" ? nameOf(G.sim.home) + "'s shot" : G.sim.home === G.role ? "Your shot" : nameOf(G.sim.home) + "'s shot";
+  else if (G.mode === "local") s = nameOf(whose(st)) + ": drag to aim, release to fire";
+  else s = whose(st) === G.role ? "Your turn: drag to aim, release to fire" : nameOf(whose(st)) + " is aiming…";
+  setStatus(s);
+}
+
+// ---------- drawing ----------
+function resize() {
+  const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+}
+addEventListener("resize", () => { resize(); render(); });
+const RAMP = [[239, 107, 74], [226, 87, 127], [176, 92, 209], [104, 110, 230]];
+function hpColor(hp) {
+  const t = clamp((hp - 1) / 14, 0, 1) * (RAMP.length - 1), k = Math.min(RAMP.length - 2, Math.floor(t)), f = t - k, a = RAMP[k], b = RAMP[k + 1];
+  return "rgb(" + Math.round(a[0] + (b[0] - a[0]) * f) + "," + Math.round(a[1] + (b[1] - a[1]) * f) + "," + Math.round(a[2] + (b[2] - a[2]) * f) + ")";
+}
+function rrect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function render() {
+  const k = cv.width / W, F = flip();
+  const X = x => (F ? W - x : x), Y = y => (F ? H - y : y);
+  ctx.setTransform(k, 0, 0, k, 0, 0);
+  ctx.fillStyle = "#120e19"; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#2d2439";
+  for (let r = 1; r < ROWS; r++) for (let c = 1; c < COLS; c++) ctx.fillRect(c * C - 1.5, r * C - 1.5, 3, 3);
+  // centre line
+  ctx.strokeStyle = "rgba(168,152,184,.18)"; ctx.lineWidth = 2; ctx.setLineDash([10, 10]);
+  ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke(); ctx.setLineDash([]);
+  // goals: the opponent's at the top of the screen, mine at the bottom
+  const pulse = 0.55 + 0.45 * Math.sin(performance.now() / 300);
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(226,87,127," + (0.5 + 0.5 * pulse) + ")"; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.moveTo(GOAL0, 3); ctx.lineTo(GOAL1, 3); ctx.stroke();
+  ctx.strokeStyle = "rgba(111,227,180,.75)";
+  ctx.beginPath(); ctx.moveTo(GOAL0, H - 3); ctx.lineTo(GOAL1, H - 3); ctx.stroke();
+  ctx.lineCap = "butt";
+  if (!G.st) return;
+  // the red lines: blocks pushed past them into an end cost that player HP
+  ctx.strokeStyle = "rgba(226,87,127,.55)"; ctx.lineWidth = 2; ctx.setLineDash([8, 7]);
+  ctx.beginPath(); ctx.moveTo(0, C); ctx.lineTo(W, C); ctx.moveTo(0, H - C); ctx.lineTo(W, H - C); ctx.stroke(); ctx.setLineDash([]);
+  // blocks (the half that just advanced slides into place)
+  const blocks = G.sim ? G.sim.blocks : parseBlocks(G.st.blocks);
+  let slideY = 0, slideHalf = null;
+  if (G.slide && !G.sim) {
+    const p = clamp((performance.now() - G.slide.t0) / 380, 0, 1), e = 1 - (1 - p) * (1 - p);
+    if (p >= 1) G.slide = null; else { slideHalf = G.slide.to; slideY = (G.slide.to === "guest" ? 1 : -1) * G.slide.rows * C * (1 - e); }
+  }
+  const midRow = ROWS / 2;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "600 20px 'DM Mono', monospace";
+  for (let i = 0; i < blocks.length; i++) {
+    const hp = blocks[i]; if (!hp) continue;
+    const r = Math.floor(i / COLS), c = i % COLS;
+    const dy = slideHalf && ((slideHalf === "guest") === (r < midRow)) ? slideY : 0;
+    const x0 = Math.min(X(c * C + GAP), X((c + 1) * C - GAP)), y0 = Math.min(Y(r * C + GAP + dy), Y((r + 1) * C - GAP + dy));
+    ctx.fillStyle = hpColor(hp); rrect(x0, y0, C - 2 * GAP, C - 2 * GAP, 7); ctx.fill();
+    ctx.fillStyle = "#1a1222"; ctx.fillText(String(hp), x0 + C / 2 - GAP, y0 + C / 2 - GAP + 1);
+  }
+  // launchers
+  const st = G.st;
+  for (const role of ["host", "guest"]) {
+    const up = role === "host", lx = st.lx[role], ly = up ? H - R - 1 : R + 1;
+    const active = !G.sim && !st.winner && whose(st) === role;
+    if (G.sim && G.sim.home === role && G.sim.launched >= G.sim.count) continue;
+    ctx.globalAlpha = active || (G.sim && G.sim.home === role) ? 1 : 0.4;
+    ctx.fillStyle = up ? "#fbf1dc" : "#fbf1dc";
+    ctx.beginPath(); ctx.arc(X(lx), Y(ly), R, 0, 7); ctx.fill();
+    ctx.fillStyle = "#a898b8"; ctx.font = "500 13px 'DM Mono', monospace";
+    const left = X(lx) > W - 60;
+    ctx.textAlign = left ? "right" : "left";
+    const n = G.sim && G.sim.home === role ? G.sim.count - G.sim.launched : st.balls[role];
+    ctx.fillText("×" + n, X(lx) + (left ? -16 : 16), Y(ly));
+    ctx.globalAlpha = 1;
+  }
+  // aim line
+  if (G.aim) {
+    const a = G.aim; let x = a.sx, y = a.sy, dx = a.dx, dy = a.dy, left = 520;
+    ctx.strokeStyle = "rgba(251,241,220,.7)"; ctx.lineWidth = 2.5; ctx.setLineDash([2, 10]); ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(X(x), Y(y));
+    for (let seg = 0; seg < 3 && left > 0; seg++) {
+      const tx = dx > 0 ? (W - R - x) / dx : dx < 0 ? (R - x) / dx : 1e9, ty = dy > 0 ? (H - R - y) / dy : (R - y) / dy;
+      const t = Math.min(tx, ty, left);
+      x += dx * t; y += dy * t; left -= t; ctx.lineTo(X(x), Y(y));
+      if (t === tx) dx = -dx; else break;
+    }
+    ctx.stroke(); ctx.setLineDash([]); ctx.lineCap = "butt";
+  }
+  // balls
+  if (G.sim) {
+    ctx.fillStyle = "#fbf1dc";
+    for (const b of G.sim.balls) { ctx.beginPath(); ctx.arc(X(b.x), Y(b.y), R, 0, 7); ctx.fill(); }
+  }
+  // effects: goals and pops
+  const now = performance.now();
+  G.fx = G.fx.filter(f => now - f.t < 900);
+  for (const f of G.fx) {
+    const age = (now - f.t) / 900;
+    if (age < 0) continue;
+    if (f.k === "goal") {
+      ctx.globalAlpha = 1 - age; ctx.fillStyle = "#e2577f"; ctx.font = "800 22px 'Bricolage Grotesque', sans-serif"; ctx.textAlign = "center";
+      const yy = Y(f.y), dir = yy < H / 2 ? 1 : -1;
+      ctx.fillText(f.txt || "−1", X(f.x), yy + dir * (24 + 30 * age));
+    } else {
+      ctx.globalAlpha = 0.6 * (1 - age); ctx.strokeStyle = "#fbf1dc"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(X(f.x), Y(f.y), 10 + 30 * age, 0, 7); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // a short label on the half that just got its new row
+  if (G.rowTag) {
+    const age = (performance.now() - G.rowTag.t0) / 1600;
+    if (age >= 1) G.rowTag = null;
+    else {
+      const towardBottom = (G.rowTag.to === "host") !== F;   // which way that half moves on this screen
+      const y = H / 2 + (towardBottom ? 1 : -1) * C * 1.5;
+      ctx.globalAlpha = age < 0.75 ? 1 : (1 - age) * 4;
+      ctx.font = "700 15px 'DM Mono', monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      const txt = (towardBottom ? "▼ " : "▲ ") + (G.rowTag.rows > 1 ? G.rowTag.rows + " new rows" : "new row") + (towardBottom ? " ▼" : " ▲");
+      const w = ctx.measureText(txt).width + 22;
+      ctx.fillStyle = "rgba(18,14,25,.9)"; rrect(W / 2 - w / 2, y - 15, w, 30, 15); ctx.fill();
+      ctx.strokeStyle = "#e2577f"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = "#fbf1dc"; ctx.fillText(txt, W / 2, y + 1);
+      ctx.globalAlpha = 1;
+    }
+  }
+  // whose turn it is, on a pill in the middle of the field
+  let msg = "";
+  if (G.mode === "online" && st && !st.winner && !G.sim && whose(st) !== G.role && G.players.guest) msg = nameOf(whose(st)) + " is aiming…";
+  if (myTurn() && !G.aim) msg = G.mode === "local" ? nameOf(whose(st)) + ": drag to aim" : "Your turn: drag to aim";
+  if (msg) {
+    ctx.font = "700 18px 'Bricolage Grotesque', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const w = ctx.measureText(msg).width + 32;
+    ctx.fillStyle = "rgba(18,14,25,.88)"; rrect(W / 2 - w / 2, H / 2 - 20, w, 40, 20); ctx.fill();
+    ctx.strokeStyle = myTurn() ? "#f2b33d" : "#3a2e49"; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = myTurn() ? "#fbf1dc" : "#a898b8"; ctx.fillText(msg, W / 2, H / 2 + 1);
+  }
+}
+
+// ---------- main loop: fixed steps, so a shot plays out the same at any frame rate ----------
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (G.sim && !G.sim.done) {
+    G.acc = (G.acc || 0) + dt * G.mult;
+    let n = 0;
+    while (G.acc >= STEP && n < 960 && !G.sim.done) {
+      simStep(G.sim); G.acc -= STEP; n++;
+      if (G.sim.fx.length) { for (const f of G.sim.fx) G.fx.push(Object.assign({ t: performance.now() }, f)); G.sim.fx.length = 0; }
+    }
+    if (G.sim.done) finishShot();
+  }
+  render();
+  requestAnimationFrame(frame);
+}
+
+// ---------- match settings panel ----------
+let myCfg = DEFAULTS;
+try { myCfg = cleanCfg(Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem("chaosbattle.cfg") || "{}"))); } catch (e) { myCfg = cleanCfg(DEFAULTS); }
+function buildSettings() {
+  const box = $("setList"); box.innerHTML = "";
+  for (const d of SETTINGS) {
+    const f = document.createElement("div"); f.className = "fld";
+    const l = document.createElement("label"); l.className = "lbl"; l.htmlFor = "set_" + d.k; l.textContent = d.label;
+    const o = document.createElement("output"); o.textContent = myCfg[d.k] + (d.unit || ""); l.appendChild(o);
+    const i = document.createElement("input"); i.type = "range"; i.id = "set_" + d.k; i.min = d.min; i.max = d.max; i.step = d.step; i.value = myCfg[d.k];
+    i.addEventListener("input", () => {
+      myCfg = cleanCfg(Object.assign({}, myCfg, { [d.k]: Number(i.value) }));
+      o.textContent = myCfg[d.k] + (d.unit || "");
+      if (d.k === "rows") { const sr = $("set_startRows"); sr.max = myCfg.rows / 2 - 2; sr.value = myCfg.startRows; sr.previousSibling.lastChild.textContent = myCfg.startRows; }
+      try { localStorage.setItem("chaosbattle.cfg", JSON.stringify(myCfg)); } catch (e) {}
+    });
+    f.append(l, i);
+    if (d.hint) { const h = document.createElement("span"); h.className = "hint"; h.textContent = d.hint; f.appendChild(h); }
+    box.appendChild(f);
+  }
+  $("set_startRows").max = myCfg.rows / 2 - 2;
+}
+$("setReset").addEventListener("click", () => { myCfg = cleanCfg(DEFAULTS); try { localStorage.setItem("chaosbattle.cfg", JSON.stringify(myCfg)); } catch (e) {} buildSettings(); });
+buildSettings();
+
+// ---------- buttons ----------
+$("createBtn").addEventListener("click", createMatch);
+$("joinBtn").addEventListener("click", () => joinMatch($("codeIn").value));
+$("codeIn").addEventListener("keydown", e => { if (e.key === "Enter") joinMatch($("codeIn").value); });
+$("localBtn").addEventListener("click", startLocal);
+$("cancelBtn").addEventListener("click", leave);
+$("leaveBtn").addEventListener("click", leave);
+$("leaveBtn2").addEventListener("click", leave);
+$("rematchBtn").addEventListener("click", rematch);
+$("shareBtn").addEventListener("click", async () => {
+  const url = location.origin + location.pathname + "?b=" + G.code;
+  try {
+    if (navigator.share) await navigator.share({ title: "Ballz Battle", text: "Battle me in Ballz! Code " + G.code, url });
+    else { await navigator.clipboard.writeText(url); $("waitMsg").textContent = "Link copied. Waiting for your friend to join…"; }
+  } catch (e) {}
+});
+document.querySelectorAll("[data-mult]").forEach(b => b.addEventListener("click", () => {
+  G.mult = Number(b.dataset.mult);
+  document.querySelectorAll("[data-mult]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+}));
+
+// an invite link (?b=CODE) or an unfinished match rejoins straight away
+resize(); hud(); render();
+const params = new URLSearchParams(location.search);
+let resume = params.get("b") || "";
+if (!resume) { try { resume = localStorage.getItem("chaosbattle.code") || ""; } catch (e) {} }
+if (resume) { $("codeIn").value = resume; joinMatch(resume); }
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
